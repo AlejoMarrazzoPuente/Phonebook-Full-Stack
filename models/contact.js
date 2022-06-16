@@ -1,7 +1,7 @@
 const mongoose = require('mongoose')
 
 //GUARDAR EL PASS, PORT Y URL EN ENVDOT
-const url = `mongodb+srv://Alejo8139:Martina8139@cluster0.wkysg.mongodb.net/phonebook?retryWrites=true&w=majority`
+const url = `mongodb+srv://${process.env.MONGO_USER}:${process.env.MONGO_PASS}@cluster0.wkysg.mongodb.net/phonebook?retryWrites=true&w=majority`
 
 mongoose
     .connect(url)
