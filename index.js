@@ -1,7 +1,10 @@
+const contact = require('./models/contact')
+require('dotenv').config()
 const express = require("express")
 const app = express()
 const cors = require("cors")
 var morgan = require("morgan")
+const { request, response } = require('express')
 
 app.use(express.json())
 app.use(express.static('build'))
@@ -17,30 +20,7 @@ app.use(morgan((tokens, req, res) => {
   ].join(' ')
 }))
 
-/* ----- DATA ----- */
-let data = [
-    { 
-      "id": 1,
-      "name": "Arto Hellas", 
-      "number": "040-123456"
-    },
-    { 
-      "id": 2,
-      "name": "Ada Lovelace", 
-      "number": "39-44-5323523"
-    },
-    { 
-      "id": 3,
-      "name": "Dan Abramov", 
-      "number": "12-43-234345"
-    },
-    { 
-      "id": 4,
-      "name": "Mary Poppendieck", 
-      "number": "39-23-6423122"
-    }
-]
-
+data = []
 /* ----- REST ----- */
 
 app.get("/", (request, response) => {
@@ -48,15 +28,24 @@ app.get("/", (request, response) => {
 })
 
 app.get("/api/persons", (request, response) => {
-    return response.json(data)
+    contact
+      .find({})
+      .then(people => {
+        data.push(people)
+        response.json(people)})
 })
 
 app.get("/api/persons/:id", (request, response) => {
-    const person = data.filter(el => el.id == request.params.id)
-    console.log(person === true)
-    if (person)
-        return response.json(person[0])
-    response.status(404).end()
+    contact
+      .findById(request.params.id)
+      .then(person => response.json(person))
+})
+
+app.put("/api/persons/:id", (request, response) => {
+  return contact
+    .findByIdAndUpdate(request.params.id, {number: request.body.number})
+    .then((req, res) => {
+      return response.json({...request.body, number: request.body.number})})
 })
 
 app.get("/info", (request, response) => {
@@ -64,31 +53,44 @@ app.get("/info", (request, response) => {
 })
 
 app.delete("/api/persons/:id", (request, response) => {
-  
-  if(data.find(el => el.id === Number(request.params.id)) !== undefined){
-    data = data.filter(el => el.id !== Number(request.params.id))
-    response.status(204).end()
-  }
-  else{
-    response.status(404).send(new Error('No se encuentra'))
-  }
+  console.log(request.params.id)
+  contact
+    .findByIdAndRemove(request.params.id)
+    .then(() => response.status(204).end())
+    .catch(error => {
+      console.log(error)
+      response.status(404).end()})
 })
 
-app.post("/api/persons", (request, response) => {
-
+app.post("/api/persons", (request, response, next) => {
   const body = request.body
   const allowed = body.name !== "" && body.number !== "" && data.find(el => el.name == body.name) === undefined;
   
   if(allowed){
-    const newPerson = {
-      "id": parseInt(Math.random()*100000),
-      "name": request.body.name,
-      "number": request.body.number
-    }
-    data.push(newPerson)
-    return response.json(newPerson)
+    console.log("entro")
+    const newPerson = new contact({
+      name: request.body.name,
+      number: request.body.number
+    })
+    return newPerson
+      .save()
+      .then(added => {
+        console.log("Person added", added)
+        return response.json(added)
+      })
+      .catch(error => {
+        next(error)
+      })
+      
   }
   response.status(400).json({error: "important data missing or name is already on phonebook"})
+})
+
+//ERROR HANDLING
+
+app.use((err, req, res, next)=>{
+  console.log("error is",err.errors.name.message)
+  return res.status(422).send({error: err.errors.name.message})
 })
 
 /* ----- LISTENING ----- */
